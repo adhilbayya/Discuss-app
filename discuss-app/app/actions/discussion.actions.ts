@@ -1,0 +1,189 @@
+"use server";
+
+import { auth } from "../lib/auth";
+import connectDB from "../lib/mongodb";
+import DiscussDiscussion from "../model/DiscussDiscussion";
+import DiscussUser from "../model/DiscussUser";
+
+export async function getDiscussions() {
+  try {
+    await connectDB();
+    const session = await auth();
+    const currentUserId = session?.user?.id;
+
+    const discussions = await DiscussDiscussion.find({}).sort({
+      createdAt: -1,
+    });
+
+    const discussionsWithUser = await Promise.all(
+      discussions.map(async (discussion) => {
+        const user = await DiscussUser.findById(discussion.userId);
+        return {
+          _id: discussion._id.toString(),
+          userId: discussion.userId.toString(),
+          title: discussion.title,
+          description: discussion.description,
+          upVote: discussion.upVote,
+          createdAt: discussion.createdAt.toISOString(),
+          createdBy: user?.fullName,
+          isLikedByCurrentUser: currentUserId
+            ? discussion.likedBy.includes(currentUserId)
+            : false,
+        };
+      })
+    );
+
+    return discussionsWithUser;
+  } catch (err) {
+    if (err instanceof Error) {
+      console.log(err.message);
+    } else {
+      console.log("An unexpected error occurred", err);
+    }
+    return [];
+  }
+}
+
+export async function getDiscussionById(id: string) {
+  await connectDB();
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  const discussion = await DiscussDiscussion.findById(id);
+  if (!discussion) {
+    return null;
+  }
+
+  const user = await DiscussUser.findById(discussion.userId);
+
+  return {
+    _id: discussion._id.toString(),
+    userId: discussion.userId.toString(),
+    title: discussion.title,
+    description: discussion.description,
+    upVote: discussion.upVote,
+    createdAt: discussion.createdAt.toISOString(),
+    createdBy: user?.fullName,
+    isLikedByCurrentUser: currentUserId
+      ? discussion.likedBy.includes(currentUserId)
+      : false,
+  };
+}
+
+export async function addDiscussion(
+  title: string,
+  description: string,
+  userId: string
+) {
+  if (!title?.trim() || !description?.trim()) {
+    return { success: false, error: "Both the feilds are required" };
+  }
+  try {
+    await connectDB();
+    const discussion = await DiscussDiscussion.create({
+      title,
+      description,
+      userId,
+      upVote: 0,
+    });
+    return {
+      success: true,
+      data: {
+        _id: discussion._id.toString(),
+        userId: discussion.userId,
+        title: discussion.title,
+        description: discussion.description,
+        upVote: discussion.upVote,
+        createdAt: discussion.createdAt.toISOString(),
+      },
+    };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    } else {
+      console.log("An unexpected error occurred", err);
+    }
+  }
+}
+
+export async function getMyDiscussions(userId: string) {
+  try {
+    await connectDB();
+
+    const discussions = await DiscussDiscussion.find({ userId }).sort({
+      createdAt: -1,
+    });
+
+    const discussionsWithCreator = await Promise.all(
+      discussions.map(async (discussion) => {
+        const user = await DiscussUser.findById(discussion.userId);
+        return {
+          _id: discussion._id.toString(),
+          userId: discussion.userId.toString(),
+          title: discussion.title,
+          description: discussion.description,
+          upVote: discussion.upVote,
+          createdAt: discussion.createdAt.toISOString(),
+          createdBy: user?.fullName || "Unknown User",
+          isLikedByCurrentUser: discussion.likedBy.includes(userId),
+        };
+      })
+    );
+
+    return discussionsWithCreator;
+  } catch (err) {
+    if (err instanceof Error) {
+      console.log(err.message);
+    } else {
+      console.log("An unexpected error occurred", err);
+    }
+    return [];
+  }
+}
+
+export async function toggleLike(discussId: string) {
+  try {
+    const session = await auth();
+    await connectDB();
+
+    const discussion = await DiscussDiscussion.findById(discussId);
+
+    const userId = session?.user?.id;
+    const hasLiked = discussion.likedBy.includes(userId);
+
+    let updatedDiscussion;
+    if (hasLiked) {
+      updatedDiscussion = await DiscussDiscussion.findByIdAndUpdate(
+        discussId,
+        {
+          $pull: { likedBy: userId },
+          $inc: { upVote: -1 },
+        },
+        { new: true }
+      );
+    } else {
+      updatedDiscussion = await DiscussDiscussion.findByIdAndUpdate(
+        discussId,
+        {
+          $push: { likedBy: userId },
+          $inc: { upVote: 1 },
+        },
+        { new: true }
+      );
+    }
+
+    return {
+      success: true,
+      upVote: updatedDiscussion?.upVote || 0,
+      likedBy: !hasLiked,
+    };
+  } catch (err) {
+    console.error("Error in toggleLike:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+      upVote: 0,
+      likedBy: false,
+    };
+  }
+}

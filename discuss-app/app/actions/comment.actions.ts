@@ -1,0 +1,130 @@
+"use server";
+
+import { auth } from "../lib/auth";
+import connectDB from "../lib/mongodb";
+import DiscussComment from "../model/DiscussComment";
+import DiscussUser from "../model/DiscussUser";
+
+export default async function addComment(
+  discussId: string,
+  description: string,
+  userId: string
+) {
+  try {
+    await connectDB();
+
+    const comment = await DiscussComment.create({
+      discussId,
+      description,
+      userId,
+      upVote: 0,
+      likedBy: [],
+    });
+
+    return {
+      success: true,
+      data: {
+        _id: comment._id.toString(),
+        discussId: comment.discussId,
+        userId: comment.userId,
+        description: comment.description,
+        upVote: comment.upVote,
+        createdAt: comment.createdAt.toISOString(),
+      },
+    };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    } else {
+      console.log("An unexpected error occurred", err);
+      return { success: false, error: "An unexpected error occurred" };
+    }
+  }
+}
+
+export async function getCommentByDiscussionId(discussId: string) {
+  try {
+    await connectDB();
+    const session = await auth();
+    const currentUserId = session?.user?.id;
+
+    const comments = await DiscussComment.find({ discussId }).sort({
+      createdAt: 1, // Oldest first
+    });
+
+    const commentsWithUser = await Promise.all(
+      comments.map(async (comment) => {
+        const user = await DiscussUser.findById(comment.userId);
+
+        return {
+          _id: comment._id.toString(),
+          userId: comment.userId,
+          discussId: comment.discussId,
+          description: comment.description,
+          upVote: comment.upVote,
+          createdAt: comment.createdAt.toISOString(),
+          createdBy: user?.fullName || "Unknown User",
+          isLikedByCurrentUser: currentUserId
+            ? comment.likedBy.includes(currentUserId)
+            : false,
+        };
+      })
+    );
+    return commentsWithUser;
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error("Error fetching comments:", err.message);
+    } else {
+      console.error("An unexpected error occurred", err);
+    }
+    return [];
+  }
+}
+
+export async function toggleCommentLike(commentId: string) {
+  try {
+    const session = await auth();
+
+    await connectDB();
+
+    const comment = await DiscussComment.findById(commentId);
+
+    const userId = session?.user?.id;
+    const hasLiked = comment.likedBy.includes(userId);
+
+    let updatedComment;
+    if (hasLiked) {
+      updatedComment = await DiscussComment.findByIdAndUpdate(
+        commentId,
+        {
+          $pull: { likedBy: userId },
+          $inc: { upVote: -1 },
+        },
+        { new: true }
+      );
+    } else {
+      updatedComment = await DiscussComment.findByIdAndUpdate(
+        commentId,
+        {
+          $push: { likedBy: userId },
+          $inc: { upVote: 1 },
+        },
+        { new: true }
+      );
+    }
+
+    return {
+      success: true,
+      upVote: updatedComment?.upVote || 0,
+      likedBy: !hasLiked,
+    };
+  } catch (err) {
+    console.error("Error: ", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+      upVote: 0,
+      likedBy: false,
+    };
+  }
+}
