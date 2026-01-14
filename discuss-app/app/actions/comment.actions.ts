@@ -1,7 +1,9 @@
 "use server";
 
+import { ZodError } from "zod";
 import { auth } from "../lib/auth";
 import connectDB from "../lib/mongodb";
+import { createCommentSchema } from "../lib/validations";
 import DiscussComment from "../model/DiscussComment";
 import DiscussUser from "../model/DiscussUser";
 
@@ -10,12 +12,15 @@ export default async function addComment(
   description: string,
   userId: string
 ) {
+  const validation = createCommentSchema.safeParse({
+    description,
+  });
   try {
     await connectDB();
 
     const comment = await DiscussComment.create({
       discussId,
-      description,
+      description: validation.data?.description,
       userId,
       upVote: 0,
       likedBy: [],
@@ -32,11 +37,11 @@ export default async function addComment(
         createdAt: comment.createdAt.toISOString(),
       },
     };
-  } catch (err) {
-    if (err instanceof Error) {
-      return { success: false, error: err.message };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: error.issues[0].message };
     } else {
-      console.log("An unexpected error occurred", err);
+      console.log("An unexpected error occurred", error);
       return { success: false, error: "An unexpected error occurred" };
     }
   }

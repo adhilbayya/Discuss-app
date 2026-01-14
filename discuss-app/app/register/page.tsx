@@ -44,8 +44,8 @@ export default function Page() {
       } else {
         router.push("/login");
       }
-    } finally {
-      setError("");
+    } catch (error) {
+      setError("An unexpected error occurred. Please try again.");
     }
   };
 

@@ -2,6 +2,7 @@
 
 import { auth } from "../lib/auth";
 import connectDB from "../lib/mongodb";
+import { createDiscussionSchema } from "../lib/validations";
 import DiscussDiscussion from "../model/DiscussDiscussion";
 import DiscussUser from "../model/DiscussUser";
 
@@ -75,14 +76,26 @@ export async function addDiscussion(
   description: string,
   userId: string
 ) {
+  const validation = createDiscussionSchema.safeParse({
+    title,
+    description,
+  });
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0].message,
+    };
+  }
+
   if (!title?.trim() || !description?.trim()) {
     return { success: false, error: "Both the feilds are required" };
   }
   try {
     await connectDB();
     const discussion = await DiscussDiscussion.create({
-      title,
-      description,
+      title: validation.data.title,
+      description: validation.data.description,
       userId,
       upVote: 0,
     });

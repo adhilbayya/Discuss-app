@@ -29,15 +29,19 @@ export default function Page() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    if (res?.ok) {
-      router.push("/discussion");
-    } else {
-      setError(res.error || "Login failed");
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (res?.error) {
+        setError("Email or password is not correct");
+      } else {
+        router.push("/discussion");
+      }
+    } catch (error) {
+      setError(error.message);
     }
   };
   return (
