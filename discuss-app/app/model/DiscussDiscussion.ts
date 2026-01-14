@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
 export interface DiscussionDoc {
-  userId: string;
+  userId: mongoose.Schema.Types.ObjectId;
   title: string;
   description: string;
   upVote: number;
@@ -12,7 +12,8 @@ export interface DiscussionDoc {
 const DiscussionSchema = new Schema<DiscussionDoc>(
   {
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DiscussUser",
       required: true,
     },
     title: {

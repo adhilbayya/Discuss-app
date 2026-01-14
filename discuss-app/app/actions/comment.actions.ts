@@ -5,7 +5,6 @@ import { auth } from "../lib/auth";
 import connectDB from "../lib/mongodb";
 import { createCommentSchema } from "../lib/validations";
 import DiscussComment from "../model/DiscussComment";
-import DiscussUser from "../model/DiscussUser";
 
 export default async function addComment(
   discussId: string,
@@ -53,28 +52,27 @@ export async function getCommentByDiscussionId(discussId: string) {
     const session = await auth();
     const currentUserId = session?.user?.id;
 
-    const comments = await DiscussComment.find({ discussId }).sort({
-      createdAt: 1, // Oldest first
-    });
-
-    const commentsWithUser = await Promise.all(
-      comments.map(async (comment) => {
-        const user = await DiscussUser.findById(comment.userId);
-
-        return {
-          _id: comment._id.toString(),
-          userId: comment.userId,
-          discussId: comment.discussId,
-          description: comment.description,
-          upVote: comment.upVote,
-          createdAt: comment.createdAt.toISOString(),
-          createdBy: user?.fullName || "Unknown User",
-          isLikedByCurrentUser: currentUserId
-            ? comment.likedBy.includes(currentUserId)
-            : false,
-        };
+    const comments = await DiscussComment.find({ discussId })
+      .populate("userId", "fullName")
+      .sort({
+        createdAt: 1,
       })
-    );
+      .lean();
+
+    const commentsWithUser = comments.map((comment) => {
+      return {
+        _id: comment._id.toString(),
+        userId: comment.userId.toString(),
+        discussId: comment.discussId,
+        description: comment.description,
+        upVote: comment.upVote,
+        createdAt: comment.createdAt.toISOString(),
+        createdBy: comment.userId?.fullName || "Unknown User",
+        isLikedByCurrentUser: currentUserId
+          ? comment.likedBy.includes(currentUserId)
+          : false,
+      };
+    });
     return commentsWithUser;
   } catch (err) {
     if (err instanceof Error) {

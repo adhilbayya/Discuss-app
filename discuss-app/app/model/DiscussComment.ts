@@ -2,7 +2,7 @@ import mongoose, { Schema } from "mongoose";
 
 export interface DiscussCommentDoc {
   discussId: string;
-  userId: string;
+  userId: mongoose.Schema.Types.ObjectId;
   description: string;
   upVote: number;
   likedBy: string[];
@@ -16,7 +16,8 @@ const CommentSchema = new Schema<DiscussCommentDoc>(
       required: true,
     },
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DiscussUser",
       required: true,
     },
     description: {

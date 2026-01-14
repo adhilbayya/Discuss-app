@@ -9,32 +9,31 @@ import DiscussUser from "../model/DiscussUser";
 export async function getDiscussions() {
   try {
     await connectDB();
+
     const session = await auth();
     const currentUserId = session?.user?.id;
 
-    const discussions = await DiscussDiscussion.find({}).sort({
-      createdAt: -1,
+    const discussions = await DiscussDiscussion.find({})
+      .populate("userId", "fullName")
+      .sort({
+        createdAt: -1,
+      });
+
+    const discussionWithUser = discussions.map((discussion) => {
+      return {
+        _id: discussion._id.toString(),
+        userId: discussion.userId?.toString(),
+        title: discussion.title,
+        description: discussion.description,
+        upVote: discussion.upVote,
+        createdAt: discussion.createdAt.toISOString(),
+        createdBy: discussion.userId?.fullName,
+        isLikedByCurrentUser: currentUserId
+          ? discussion.likedBy.includes(currentUserId)
+          : false,
+      };
     });
-
-    const discussionsWithUser = await Promise.all(
-      discussions.map(async (discussion) => {
-        const user = await DiscussUser.findById(discussion.userId);
-        return {
-          _id: discussion._id.toString(),
-          userId: discussion.userId.toString(),
-          title: discussion.title,
-          description: discussion.description,
-          upVote: discussion.upVote,
-          createdAt: discussion.createdAt.toISOString(),
-          createdBy: user?.fullName,
-          isLikedByCurrentUser: currentUserId
-            ? discussion.likedBy.includes(currentUserId)
-            : false,
-        };
-      })
-    );
-
-    return discussionsWithUser;
+    return discussionWithUser;
   } catch (err) {
     if (err instanceof Error) {
       console.log(err.message);
@@ -123,27 +122,26 @@ export async function getMyDiscussions(userId: string) {
   try {
     await connectDB();
 
-    const discussions = await DiscussDiscussion.find({ userId }).sort({
-      createdAt: -1,
+    const discussions = await DiscussDiscussion.find({ userId })
+      .populate("userId", "fullName")
+      .sort({
+        createdAt: -1,
+      });
+
+    const discussionsWithUser = discussions.map((discussion) => {
+      return {
+        _id: discussion._id.toString(),
+        userId: discussion.userId.toString(),
+        title: discussion.title,
+        description: discussion.description,
+        upVote: discussion.upVote,
+        createdAt: discussion.createdAt.toISOString(),
+        createdBy: discussion.userId?.fullName || "Unknown User",
+        isLikedByCurrentUser: discussion.likedBy.includes(userId),
+      };
     });
 
-    const discussionsWithCreator = await Promise.all(
-      discussions.map(async (discussion) => {
-        const user = await DiscussUser.findById(discussion.userId);
-        return {
-          _id: discussion._id.toString(),
-          userId: discussion.userId.toString(),
-          title: discussion.title,
-          description: discussion.description,
-          upVote: discussion.upVote,
-          createdAt: discussion.createdAt.toISOString(),
-          createdBy: user?.fullName || "Unknown User",
-          isLikedByCurrentUser: discussion.likedBy.includes(userId),
-        };
-      })
-    );
-
-    return discussionsWithCreator;
+    return discussionsWithUser;
   } catch (err) {
     if (err instanceof Error) {
       console.log(err.message);
