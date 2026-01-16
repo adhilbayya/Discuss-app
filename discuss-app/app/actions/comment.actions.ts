@@ -29,8 +29,8 @@ export default async function addComment(
       success: true,
       data: {
         _id: comment._id.toString(),
-        discussId: comment.discussId,
-        userId: comment.userId,
+        discussId: comment.discussId.toString(),
+        userId: comment.userId.toString(),
         description: comment.description,
         upVote: comment.upVote,
         createdAt: comment.createdAt.toISOString(),

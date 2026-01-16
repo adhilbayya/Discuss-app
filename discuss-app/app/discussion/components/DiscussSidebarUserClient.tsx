@@ -20,6 +20,8 @@ import {
 import { EllipsisVertical, LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
+import { ThemeToggle } from "./ThemeToggle";
+import { Button } from "@/components/ui/button";
 
 interface DiscussSidebarUserClientProps {
   userName: string;
@@ -66,12 +68,18 @@ export default function DiscussSidebarUserClient({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem className="cursor-pointer">
+              <ThemeToggle />
+            </DropdownMenuItem>
+
             <DropdownMenuItem
               onClick={handleSignOutClick}
               className="cursor-pointer"
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <Button variant="ghost" className="p-0 m-0">
+                <LogOut className="" />
+                <span>Log out</span>
+              </Button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -41,7 +41,7 @@ export default function Page() {
         router.push("/discussion");
       }
     } catch (error) {
-      setError(error.message);
+      if (error instanceof Error) setError(error.message);
     }
   };
   return (

@@ -102,7 +102,7 @@ export async function addDiscussion(
       success: true,
       data: {
         _id: discussion._id.toString(),
-        userId: discussion.userId,
+        userId: discussion.userId.toString(),
         title: discussion.title,
         description: discussion.description,
         upVote: discussion.upVote,
