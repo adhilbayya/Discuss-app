@@ -6,7 +6,7 @@ export default function DiscussCard({ discussions }: DiscussionProp) {
     return <div>No discussions found.</div>;
   }
   return (
-    <div className="flex flex-col justify-center m-10 w-3/4">
+    <div className="flex flex-col justify-center w-full md:w-3/4 md:m-10">
       {discussions.map((discussion) => (
         <DiscussionCardItem key={discussion._id} discussion={discussion} />
       ))}
